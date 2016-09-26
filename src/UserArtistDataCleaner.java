@@ -1,23 +1,28 @@
+import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericsUtil;
 
 import java.io.IOException;
-import java.util.StringTokenizer;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author juancarrillo
  */
 public class UserArtistDataCleaner {
 
+    private static final int ARTIST_ID = 0;
     private static final int ARTIST_SHA = 1;
 
     private final static IntWritable number = new IntWritable(0);
@@ -28,29 +33,52 @@ public class UserArtistDataCleaner {
         public void map(LongWritable key, Text line, Context context) throws IOException, InterruptedException {
             String[] data = line.toString().split("\t");
 
-            try {
-                context.write(new Text(data[ARTIST_SHA]), new IntWritable(0));
-            } catch (ArrayIndexOutOfBoundsException e) {
-                System.out.println("data[ARTIST_SHA] = " + data[ARTIST_SHA]);
-            }
+            context.write(new Text(data[ARTIST_SHA]), new IntWritable(NumberUtils.toInt(data[ARTIST_ID])));
         }
     }
 
-     static class ArtistUserDictionaryReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+     static class ArtistUserDictionaryReducer extends Reducer<Text, IntWritable, LongWritable, Text> {
 
-        @Override
-        protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-            context.write(key, new IntWritable());
+         @Override
+         protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws InterruptedException {
+             IntWritable value = values.iterator().next();
+             try {
+                 context.write(new LongWritable(value.get()), key);
+             } catch (IOException e) {
+                 log.error(e.getMessage());
+             }
+         }
+     }
+
+    public static void setArtistDictionary(Configuration conf, Path artistPath) throws IOException {
+        Map<Integer, String> dictionary = new HashMap<>();
+
+        FileSystem fs = FileSystem.get(artistPath.toUri(), conf);
+        FileStatus[] outputFiles = fs.globStatus(new Path(artistPath, "file*"));
+        for (FileStatus fileStatus : outputFiles) {
+            SequenceFile.Reader.Option filePath = SequenceFile.Reader.file(artistPath);
+            SequenceFile.Reader reader = new SequenceFile.Reader(conf, filePath);
+
+            IntWritable key = new IntWritable();
+            Text value = new Text();
+            while (reader.next(key, value)) {
+                dictionary.put(key.get(), value.toString());
+            }
         }
+        DefaultStringifier<Map<Integer,String>> mapStringifier = new DefaultStringifier<>(
+                conf, GenericsUtil.getClass(dictionary));
+        conf.set("dictionary", mapStringifier.toString(dictionary));
     }
 
 
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
+
+        //setArtistDictionary(conf, new Path("input/artist/"));
+
         Job job = Job.getInstance(conf);
         job.setJarByClass(UserArtistDataCleaner.class);
         job.setMapperClass(UserArtistDataCleaner.ArtistUserDictionaryMapper.class);
-        job.setCombinerClass(UserArtistDataCleaner.ArtistUserDictionaryReducer.class);
         job.setReducerClass(UserArtistDataCleaner.ArtistUserDictionaryReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
@@ -60,5 +88,17 @@ public class UserArtistDataCleaner {
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
+    private static Configuration CreateNewConfiguration() {
+        Configuration conf = new Configuration();
+
+        conf.set("mapred.compress.map.output", "true");
+        conf.set("mapred.output.compression.type", "BLOCK");
+        conf.set("io.serializations",
+                "org.apache.hadoop.io.serializer.JavaSerialization,"
+                        + "org.apache.hadoop.io.serializer.WritableSerialization");
+        return conf;
+    }
+
+    public static Log log = LogFactory.getLog(UserArtistDataCleaner.class);
 
 }
