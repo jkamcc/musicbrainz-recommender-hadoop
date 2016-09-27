@@ -19,7 +19,7 @@ import java.util.Map;
  */
 public class UpdateUserDataSet {
 
-    public static void createArtistDictionaryFile(Configuration conf, Path inputPath, Path outputPath) throws IOException {
+    public static void createDictionaryFile(Configuration conf, Path inputPath, Path outputPath) throws IOException {
         Map<String, Integer> dictionary = new HashMap<>();
 
         FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
@@ -43,11 +43,11 @@ public class UpdateUserDataSet {
         }
     }
 
-    private static void loadArtistDictionaryFile(Configuration conf, Path path) throws IOException {
+    private static void loadDictionaryFile(Configuration conf, Path path, String name) throws IOException {
         Map<String, Integer> dictionary = new HashMap<>();
 
         FileSystem fs = FileSystem.get(path.toUri(), conf);
-        FileStatus[] outputFiles = fs.globStatus(new Path(path, "artist-dict"));
+        FileStatus[] outputFiles = fs.globStatus(new Path(path, name));
         for (FileStatus fileStatus : outputFiles) {
             SequenceFile.Reader.Option filePath = SequenceFile.Reader.file(fileStatus.getPath());
             SequenceFile.Reader reader = new SequenceFile.Reader(conf, filePath);
@@ -61,10 +61,10 @@ public class UpdateUserDataSet {
 
         DefaultStringifier<Map<String, Integer>> mapStringifier = new DefaultStringifier<>(
                 conf, GenericsUtil.getClass(dictionary));
-        conf.set("dictionary", mapStringifier.toString(dictionary));
+        conf.set(name, mapStringifier.toString(dictionary));
     }
 
-    public static void createArtistDictionary(Configuration conf, Path inputPath, Path outputPath, Path dictionaryPath)
+    public static void createDictionary(Configuration conf, Path inputPath, Path outputPath, Path dictionaryPath)
             throws Exception {
 
         Job job = Job.getInstance(conf);
@@ -82,13 +82,14 @@ public class UpdateUserDataSet {
 
         job.waitForCompletion(true);
 
-        createArtistDictionaryFile(conf, outputPath, dictionaryPath);
+        createDictionaryFile(conf, outputPath, dictionaryPath);
     }
 
-    public static void cleanUserData(Configuration conf, Path inputPath, Path outputPath, Path artistDictionaryPath)
-            throws Exception {
+    public static void cleanUserData(Configuration conf, Path inputPath, Path outputPath,
+            Path artistDictionaryPath, Path userDictionaryPath) throws Exception {
 
-        loadArtistDictionaryFile(conf, artistDictionaryPath);
+        loadDictionaryFile(conf, artistDictionaryPath, "artist-dict");
+        loadDictionaryFile(conf, userDictionaryPath, "user-dict");
 
         Job job = Job.getInstance(conf);
         job.setJarByClass(UserLogsArtistCleanerMapReducer.class);
@@ -96,6 +97,8 @@ public class UpdateUserDataSet {
         job.setMapOutputValueClass(Text.class);
         job.setMapperClass(UserLogsArtistCleanerMapReducer.Mapper.class);
         job.setReducerClass(UserLogsArtistCleanerMapReducer.Reducer.class);
+        job.setOutputKeyClass(LongWritable.class);
+        job.setOutputValueClass(Text.class);
 
         FileInputFormat.addInputPath(job, inputPath);
         FileSystem.get(conf).delete(outputPath, true);
@@ -107,13 +110,16 @@ public class UpdateUserDataSet {
     public static void main(String[] args) throws Exception {
         Configuration conf = CreateNewConfiguration();
         /*
-        Path artistDictionaryPath = new Path("input/artist/artist-dict");
-        UpdateUserDataSet.createArtistDictionary(
-                conf, new Path("input/artist_input"), new Path("output/"), artistDictionaryPath);
-        UpdateUserDataSet.loadArtistDictionaryFile(conf, new Path("input/artist/"));
+        UpdateUserDataSet.createDictionary(
+                conf, new Path("input/artist_input"), new Path("output/"), new Path("input/artist/artist-dict"));
+        UpdateUserDataSet.createDictionary(
+                conf, new Path("input/user_input"), new Path("output/"), new Path("input/user/user-dict"));
         */
+        UpdateUserDataSet.loadDictionaryFile(conf, new Path("input/artist/"), "artist-dict");
+        UpdateUserDataSet.loadDictionaryFile(conf, new Path("input/user/"), "user-dict");
 
-        UpdateUserDataSet.cleanUserData(conf, new Path("input/data/"),  new Path("output/"), new Path("input/artist/"));
+        UpdateUserDataSet.cleanUserData(
+                conf, new Path("input/data/"),  new Path("output/"), new Path("input/artist/"), new Path("input/user/"));
     }
 
     private static Configuration CreateNewConfiguration() {
