@@ -71,7 +71,7 @@ public class UserLogsArtistCleanerMapReducer {
                 int value = entry.getKey();
                 // max value case
                 if (i == 0) {
-                    score = 100;
+                    score = MAX_SCORE;
                     maxValue = value;
                 } else {
                     score = value * 100 / maxValue;
@@ -79,13 +79,13 @@ public class UserLogsArtistCleanerMapReducer {
 
                 List<String> artists = entry.getValue();
                 for (String artist : artists) {
-                    if (i < 10) {
+                    if (i < LIMIT) {
                         context.write(key, new Text(artist + "\t" + score));
                     }
                     ++i;
                 }
 
-                if (i >= 10) {
+                if (i >= LIMIT) {
                     break;
                 }
             }
