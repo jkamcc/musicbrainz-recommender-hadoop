@@ -14,7 +14,7 @@ public class ArtistDataCleanerMapReduce {
     private static final int ARTIST_ID = 0;
     private static final int ARTIST_SHA = 1;
 
-     static class ArtistUserDictionaryMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
+     static class Mapper extends org.apache.hadoop.mapreduce.Mapper<LongWritable, Text, IntWritable, Text> {
          @Override
          protected void map(LongWritable key, Text line, Context context) throws InterruptedException {
              String[] data = line.toString().split("\t");

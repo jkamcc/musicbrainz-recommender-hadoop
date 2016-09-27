@@ -2,10 +2,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DefaultStringifier;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
@@ -22,8 +19,8 @@ import java.util.Map;
  */
 public class UpdateUserDataSet {
 
-    public static void setArtistDictionary(Configuration conf, Path inputPath, Path outputPath) throws IOException {
-        Map<Integer, String> dictionary = new HashMap<>();
+    public static void createArtistDictionaryFile(Configuration conf, Path inputPath, Path outputPath) throws IOException {
+        Map<String, Integer> dictionary = new HashMap<>();
 
         FileSystem fs = FileSystem.get(inputPath.toUri(), conf);
         FileStatus[] outputFiles = fs.globStatus(new Path(inputPath, "part-*"));
@@ -39,28 +36,40 @@ public class UpdateUserDataSet {
             IntWritable key = new IntWritable();
             Text value = new Text();
             while (reader.next(key, value)) {
-                dictionary.put(key.get(), value.toString());
+                dictionary.put(value.toString(), key.get());
                 writer.append(key, value);
             }
             writer.close();
         }
-        DefaultStringifier<Map<Integer, String>> mapStringifier = new DefaultStringifier<>(
+    }
+
+    private static void loadArtistDictionaryFile(Configuration conf, Path path) throws IOException {
+        Map<String, Integer> dictionary = new HashMap<>();
+
+        FileSystem fs = FileSystem.get(path.toUri(), conf);
+        FileStatus[] outputFiles = fs.globStatus(new Path(path, "artist-dict"));
+        for (FileStatus fileStatus : outputFiles) {
+            SequenceFile.Reader.Option filePath = SequenceFile.Reader.file(fileStatus.getPath());
+            SequenceFile.Reader reader = new SequenceFile.Reader(conf, filePath);
+
+            IntWritable key = new IntWritable();
+            Text value = new Text();
+            while (reader.next(key, value)) {
+                dictionary.put(value.toString(), key.get());
+            }
+        }
+
+        DefaultStringifier<Map<String, Integer>> mapStringifier = new DefaultStringifier<>(
                 conf, GenericsUtil.getClass(dictionary));
         conf.set("dictionary", mapStringifier.toString(dictionary));
     }
 
-    public static void main(String[] args) throws Exception {
-        Configuration conf = CreateNewConfiguration();
-        UpdateUserDataSet.createArtistDictionary(conf, new Path("input/artist_input"), new Path("output/"));
-        UpdateUserDataSet.setArtistDictionary(conf, new Path("output/"), new Path("input/artist/artist-dict"));
-    }
-
-
-    public static void createArtistDictionary(Configuration conf, Path inputPath, Path outputPath) throws Exception {
+    public static void createArtistDictionary(Configuration conf, Path inputPath, Path outputPath, Path dictionaryPath)
+            throws Exception {
 
         Job job = Job.getInstance(conf);
         job.setJarByClass(ArtistDataCleanerMapReduce.class);
-        job.setMapperClass(ArtistDataCleanerMapReduce.ArtistUserDictionaryMapper.class);
+        job.setMapperClass(ArtistDataCleanerMapReduce.Mapper.class);
 
         job.setInputFormatClass(TextInputFormat.class);
         job.setOutputKeyClass(IntWritable.class);
@@ -72,6 +81,39 @@ public class UpdateUserDataSet {
         FileOutputFormat.setOutputPath(job, outputPath);
 
         job.waitForCompletion(true);
+
+        createArtistDictionaryFile(conf, outputPath, dictionaryPath);
+    }
+
+    public static void cleanUserData(Configuration conf, Path inputPath, Path outputPath, Path artistDictionaryPath)
+            throws Exception {
+
+        loadArtistDictionaryFile(conf, artistDictionaryPath);
+
+        Job job = Job.getInstance(conf);
+        job.setJarByClass(UserLogsArtistCleanerMapReducer.class);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
+        job.setMapperClass(UserLogsArtistCleanerMapReducer.Mapper.class);
+        job.setReducerClass(UserLogsArtistCleanerMapReducer.Reducer.class);
+
+        FileInputFormat.addInputPath(job, inputPath);
+        FileSystem.get(conf).delete(outputPath, true);
+        FileOutputFormat.setOutputPath(job, outputPath);
+
+        job.waitForCompletion(true);
+    }
+
+    public static void main(String[] args) throws Exception {
+        Configuration conf = CreateNewConfiguration();
+        /*
+        Path artistDictionaryPath = new Path("input/artist/artist-dict");
+        UpdateUserDataSet.createArtistDictionary(
+                conf, new Path("input/artist_input"), new Path("output/"), artistDictionaryPath);
+        UpdateUserDataSet.loadArtistDictionaryFile(conf, new Path("input/artist/"));
+        */
+
+        UpdateUserDataSet.cleanUserData(conf, new Path("input/data/"),  new Path("output/"), new Path("input/artist/"));
     }
 
     private static Configuration CreateNewConfiguration() {
