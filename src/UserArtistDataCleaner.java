@@ -28,14 +28,13 @@ public class UserArtistDataCleaner {
 
     private final static IntWritable number = new IntWritable(0);
 
-     static class ArtistUserDictionaryMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+     static class ArtistUserDictionaryMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
+         @Override
+         protected void map(LongWritable key, Text line, Context context) throws IOException, InterruptedException {
+             String[] data = line.toString().split("\t");
 
-        @Override
-        public void map(LongWritable key, Text line, Context context) throws IOException, InterruptedException {
-            String[] data = line.toString().split("\t");
-
-            context.write(new Text(data[ARTIST_SHA]), new IntWritable(NumberUtils.toInt(data[ARTIST_ID])));
-        }
+            context.write(new IntWritable(NumberUtils.toInt(data[ARTIST_ID])), new Text(data[ARTIST_SHA]));
+         }
     }
 
      static class ArtistUserDictionaryReducer extends Reducer<Text, IntWritable, LongWritable, Text> {
@@ -62,11 +61,11 @@ public class UserArtistDataCleaner {
 
             IntWritable key = new IntWritable();
             Text value = new Text();
-            while (reader.next(value, key)) {
+            while (reader.next(key, value)) {
                 dictionary.put(key.get(), value.toString());
             }
         }
-        DefaultStringifier<Map<Integer,String>> mapStringifier = new DefaultStringifier<>(
+        DefaultStringifier<Map<Integer, String>> mapStringifier = new DefaultStringifier<>(
                 conf, GenericsUtil.getClass(dictionary));
         conf.set("dictionary", mapStringifier.toString(dictionary));
     }
@@ -75,13 +74,14 @@ public class UserArtistDataCleaner {
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
 
-        //setArtistDictionary(conf, new Path("input/artist/"));
+        setArtistDictionary(conf, new Path("input/artist/"));
 
         Job job = Job.getInstance(conf);
         job.setJarByClass(UserArtistDataCleaner.class);
         job.setMapperClass(UserArtistDataCleaner.ArtistUserDictionaryMapper.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
+        //job.setReducerClass(UserArtistDataCleaner.ArtistUserDictionaryReducer.class);
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileSystem.get(conf).delete(new Path(args[1]),true);
