@@ -11,6 +11,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.GenericsUtil;
 
 import java.io.IOException;
@@ -56,12 +57,12 @@ public class UserArtistDataCleaner {
         FileSystem fs = FileSystem.get(artistPath.toUri(), conf);
         FileStatus[] outputFiles = fs.globStatus(new Path(artistPath, "file*"));
         for (FileStatus fileStatus : outputFiles) {
-            SequenceFile.Reader.Option filePath = SequenceFile.Reader.file(artistPath);
+            SequenceFile.Reader.Option filePath = SequenceFile.Reader.file(fileStatus.getPath());
             SequenceFile.Reader reader = new SequenceFile.Reader(conf, filePath);
 
             IntWritable key = new IntWritable();
             Text value = new Text();
-            while (reader.next(key, value)) {
+            while (reader.next(value, key)) {
                 dictionary.put(key.get(), value.toString());
             }
         }
@@ -79,9 +80,9 @@ public class UserArtistDataCleaner {
         Job job = Job.getInstance(conf);
         job.setJarByClass(UserArtistDataCleaner.class);
         job.setMapperClass(UserArtistDataCleaner.ArtistUserDictionaryMapper.class);
-        job.setReducerClass(UserArtistDataCleaner.ArtistUserDictionaryReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileSystem.get(conf).delete(new Path(args[1]),true);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
