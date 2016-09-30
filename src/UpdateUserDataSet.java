@@ -1,3 +1,6 @@
+import com.google.common.base.Stopwatch;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -108,6 +111,10 @@ public class UpdateUserDataSet {
     }
 
     public static void main(String[] args) throws Exception {
+
+        Stopwatch timer = new Stopwatch();
+        timer.start();
+
         Configuration conf = CreateNewConfiguration();
         /*
         UpdateUserDataSet.createDictionary(
@@ -115,11 +122,15 @@ public class UpdateUserDataSet {
         UpdateUserDataSet.createDictionary(
                 conf, new Path("input/user_input"), new Path("output/"), new Path("input/user/user-dict"));
         */
-        UpdateUserDataSet.loadDictionaryFile(conf, new Path("input/artist/"), "artist-dict");
-        UpdateUserDataSet.loadDictionaryFile(conf, new Path("input/user/"), "user-dict");
+        String baseFolder = args[0];
+        log.info("baseFolder = " + baseFolder);
+        UpdateUserDataSet.loadDictionaryFile(conf, new Path(baseFolder+"input/artist/"), "artist-dict");
+        UpdateUserDataSet.loadDictionaryFile(conf, new Path(baseFolder+"input/user/"), "user-dict");
 
         UpdateUserDataSet.cleanUserData(
-                conf, new Path("input/data/"),  new Path("output/"), new Path("input/artist/"), new Path("input/user/"));
+                conf, new Path(baseFolder+"input/data/"),  new Path(baseFolder+"output/"), new Path(baseFolder+"input/artist/"), new Path(baseFolder+"input/user/"));
+
+        log.info("Total running time: " + timer.stop());
     }
 
     private static Configuration CreateNewConfiguration() {
@@ -132,5 +143,7 @@ public class UpdateUserDataSet {
                         + "org.apache.hadoop.io.serializer.WritableSerialization");
         return conf;
     }
+
+    public static Log log = LogFactory.getLog(UpdateUserDataSet.class);
 
 }
