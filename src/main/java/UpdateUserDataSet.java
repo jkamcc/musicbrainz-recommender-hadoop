@@ -111,7 +111,6 @@ public class UpdateUserDataSet {
     }
 
     public static void main(String[] args) throws Exception {
-
         Stopwatch timer = new Stopwatch();
         timer.start();
 
