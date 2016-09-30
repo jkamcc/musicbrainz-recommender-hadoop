@@ -1,3 +1,5 @@
+package com.jkamcc.music.brainz.hadoop.clean;
+
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

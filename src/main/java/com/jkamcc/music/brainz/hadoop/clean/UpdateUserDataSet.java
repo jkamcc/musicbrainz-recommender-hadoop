@@ -1,3 +1,5 @@
+package com.jkamcc.music.brainz.hadoop.clean;
+
 import com.google.common.base.Stopwatch;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -116,9 +118,9 @@ public class UpdateUserDataSet {
 
         Configuration conf = CreateNewConfiguration();
         /*
-        UpdateUserDataSet.createDictionary(
+        com.jkamcc.music.brainz.hadoop.clean.UpdateUserDataSet.createDictionary(
                 conf, new Path("input/artist_input"), new Path("output/"), new Path("input/artist/artist-dict"));
-        UpdateUserDataSet.createDictionary(
+        com.jkamcc.music.brainz.hadoop.clean.UpdateUserDataSet.createDictionary(
                 conf, new Path("input/user_input"), new Path("output/"), new Path("input/user/user-dict"));
         */
         String baseFolder = args[0];
@@ -127,7 +129,8 @@ public class UpdateUserDataSet {
         UpdateUserDataSet.loadDictionaryFile(conf, new Path(baseFolder+"input/user/"), "user-dict");
 
         UpdateUserDataSet.cleanUserData(
-                conf, new Path(baseFolder+"input/data/"),  new Path(baseFolder+"output/"), new Path(baseFolder+"input/artist/"), new Path(baseFolder+"input/user/"));
+                conf, new Path(baseFolder+"input/data/"),  new Path(baseFolder+"output/"),
+                new Path(baseFolder+"input/artist/"), new Path(baseFolder+"input/user/"));
 
         log.info("Total running time: " + timer.stop());
     }
