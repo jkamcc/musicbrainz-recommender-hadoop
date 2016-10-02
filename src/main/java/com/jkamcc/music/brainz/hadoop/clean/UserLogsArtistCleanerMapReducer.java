@@ -8,6 +8,7 @@ import org.apache.hadoop.io.*;
 import org.apache.hadoop.util.GenericsUtil;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.*;
 
 /**
@@ -52,7 +53,7 @@ public class UserLogsArtistCleanerMapReducer {
     static class Reducer extends org.apache.hadoop.mapreduce.Reducer<Text, Text, LongWritable, Text> {
 
         private static final int LIMIT = 10;
-        private static final int MAX_SCORE = 100;
+        private static final int MAX_SCORE = 10;
         private static final int ARTIST_ID = 0;
         private static final int PLAY_COUNT = 1;
 
@@ -93,23 +94,24 @@ public class UserLogsArtistCleanerMapReducer {
             }
 
             int i = 0;
-            int maxValue = 0;
+            double maxValue = 0;
+            DecimalFormat f = new DecimalFormat("##.00");
 
             for (Map.Entry<Integer, List<String>> entry : map.entrySet()) {
-                int score = 0;
-                int value = entry.getKey();
+                double score = 0;
+                double value = entry.getKey();
                 // max value case
                 if (i == 0) {
                     score = MAX_SCORE;
                     maxValue = value;
                 } else {
-                    score = value * 100 / maxValue;
+                    score = value * 10 / maxValue;
                 }
 
                 List<String> artists = entry.getValue();
                 for (String artist : artists) {
                     if (i < LIMIT) {
-                        context.write(new LongWritable(userId), new Text(artist + "\t" + score));
+                        context.write(new LongWritable(userId), new Text(artist + "\t" + f.format(score)));
                     }
                     ++i;
                 }

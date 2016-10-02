@@ -3,6 +3,6 @@
 .idea/
 *.jar
 hadoop.iml
-input/
-out/
-output/
+input/*
+output/*
+logs/*

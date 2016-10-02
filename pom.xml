@@ -22,6 +22,7 @@
 
     <properties>
         <hadoop.version>2.7.3</hadoop.version>
+        <mahout.version>0.12.2</mahout.version>
     </properties>
 
     <dependencies>
@@ -39,6 +40,21 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-math</artifactId>
+            <version>${mahout.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.mahout</groupId>
+            <artifactId>mahout-mr</artifactId>
+            <version>${mahout.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.2</version>
         </dependency>
     </dependencies>
 </project>
