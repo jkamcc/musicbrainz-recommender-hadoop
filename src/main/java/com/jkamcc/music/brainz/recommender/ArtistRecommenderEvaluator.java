@@ -32,12 +32,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author juancarrillo
  */
-public class ArtistRecommender {
+public class ArtistRecommenderEvaluator {
 
     private static DataModel model;
     private static RecommenderEvaluator evaluator;
 
-    public ArtistRecommender(DataModel model) throws IOException, TasteException {
+    public ArtistRecommenderEvaluator(DataModel model) throws IOException, TasteException {
 
         this.model = model;
 
@@ -54,7 +54,7 @@ public class ArtistRecommender {
             File data = new File(dataPath);
             log.debug("dataPath = " + dataPath);
             DataModel model = new FileDataModel(data);
-            ArtistRecommender recommender = new ArtistRecommender(model);
+            ArtistRecommenderEvaluator recommender = new ArtistRecommenderEvaluator(model);
             recommender.evaluateUserBasedNNeighbourhoodResults();
             recommender.evaluateUserBasedThresholdResults();
             recommender.evaluateItemBasedResults();
@@ -243,5 +243,5 @@ public class ArtistRecommender {
         return thresholds;
     }
 
-    private static Log log = LogFactory.getLog(ArtistRecommender.class);
+    private static Log log = LogFactory.getLog(ArtistRecommenderEvaluator.class);
 }
