@@ -4,8 +4,11 @@ import com.google.common.base.Stopwatch;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.mahout.cf.taste.common.TasteException;
+import org.apache.mahout.cf.taste.eval.IRStatistics;
 import org.apache.mahout.cf.taste.eval.RecommenderBuilder;
 import org.apache.mahout.cf.taste.eval.RecommenderEvaluator;
+import org.apache.mahout.cf.taste.eval.RecommenderIRStatsEvaluator;
+import org.apache.mahout.cf.taste.impl.eval.GenericRecommenderIRStatsEvaluator;
 import org.apache.mahout.cf.taste.impl.eval.RMSRecommenderEvaluator;
 import org.apache.mahout.cf.taste.impl.model.file.FileDataModel;
 import org.apache.mahout.cf.taste.impl.neighborhood.NearestNUserNeighborhood;
@@ -36,6 +39,7 @@ public class ArtistRecommenderEvaluator {
 
     private static DataModel model;
     private static RecommenderEvaluator evaluator;
+    private static RecommenderIRStatsEvaluator statsEvaluator;
 
     public ArtistRecommenderEvaluator(DataModel model) throws IOException, TasteException {
 
@@ -43,6 +47,7 @@ public class ArtistRecommenderEvaluator {
 
         /* Root-Mean Square Error Cross-Validation */
         evaluator = new RMSRecommenderEvaluator();
+        statsEvaluator = new GenericRecommenderIRStatsEvaluator();
     }
 
     public static void main(String[] args) {
@@ -65,9 +70,14 @@ public class ArtistRecommenderEvaluator {
     }
 
     public double evaluateData(RecommenderBuilder recommenderBuilder) throws TasteException {
-
         // Use 70% of the data to train; test using the other 30%.
         return evaluator.evaluate(recommenderBuilder, null, model, 0.7, 1.0);
+    }
+
+    public IRStatistics evaluatePrecisionAndRecall(RecommenderBuilder recommenderBuilder) throws TasteException {
+        IRStatistics stats = statsEvaluator.evaluate(
+                recommenderBuilder, null, model, null, 2, GenericRecommenderIRStatsEvaluator.CHOOSE_THRESHOLD, 1.0);
+        return stats;
     }
 
     public void evaluateUserBasedNNeighbourhoodResults() throws TasteException {
@@ -138,13 +148,17 @@ public class ArtistRecommenderEvaluator {
             log.info("Similarity\t" + similarity.getClass().getName());
             timer.reset();
             timer.start();
-
+            RecommenderBuilder builder = getItemBasedEvaluator(similarity);
             Double score = this.evaluateData(
-                    getItemBasedEvaluator(similarity));
+                    builder);
+            IRStatistics stats = evaluatePrecisionAndRecall(builder);
+
 
             log.info(
                     "score\t" + (!score.isNaN()? f.format(score) : "NaN")
                     + "\ttime="+timer.stop()
+                    + "\tprecision=" + stats.getPrecision()
+                    + "\trecall=" + stats.getRecall()
                     +"\t" + similarity.getClass().getName()
             );
         }

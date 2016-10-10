@@ -81,6 +81,7 @@ public class UserLogsArtistCleanerMapReducer {
             } catch (Exception e) {
                 context.getCounter("Map", "UsersNotFound").increment(1);
                 log.error(key.toString());
+                return;
             }
 
             Map<Integer, List<String>> map = new TreeMap<>(Collections.<Integer>reverseOrder());

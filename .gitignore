@@ -3,6 +3,11 @@
 .idea/
 *.jar
 hadoop.iml
-input/*
+input/artist/*
+input/artist_input/*
+input/data/*
+input/matrix/*
+input/user/*
+input/user_input/*
 output/*
 logs/*
